@@ -1,0 +1,526 @@
+---
+title: Online Supplementary Materials
+subtitle: Gender Disparities in Academic Disciplines. An Attempt to Fill in the Blind Spots of Bibliometrics
+author: Elena Chechik
+output:
+  html_document:
+    css: style.css
+    df_print: paged
+    number_sections: no
+    self_contained: yes
+    smooth_scroll: no
+    toc: no
+    toc_depth: 2
+    toc_float: yes
+    toc_position: right
+---
+
+*Center for Institutional Analysis of Science & Education; European University at St.Petersburg*
+
+---
+<br/>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,  warning = FALSE, message =  FALSE) # By default, hide code; set to TRUE to see code
+#knitr::opts_chunk$set(fig.pos = 'p') # Places figures on pages separate from text
+knitr::opts_chunk$set(out.width = '100%', dpi=300) # Figure resolution and size
+knitr::opts_chunk$set(fig.env="figure") # Latex figure environment
+```
+
+```{r pack}
+library(rmdformats)
+library(rticles)
+library(flextable)
+library(tidyverse)
+library(ggthemes)
+library(haven)
+library(DT)
+library(ggrepel)
+library(data.table)
+library(table1)
+library(ggalt)
+library(extrafont)
+library(patchwork)
+library(zoo)
+library(grid)
+library(ggtext)
+library(readxl)
+library(stringi)
+library(rvest)
+library(ggthemes)
+library(ggpubr)
+library(knitr)
+library(tokenizers)
+options(kableExtra.latex.load_packages = FALSE)
+library(kableExtra)
+#library(pander)
+library(readr)
+devtools::install_github("haozhu233/kableExtra")
+library(kableExtra)
+```
+
+#### Fig S1. Share of women among teachers at higher education institutions
+
+```{r}
+NATMON_DS_18112022080205161 <- read_csv("data/NATMON_DS_18112022080205161.csv")
+```
+
+```{r, fig.dim = c(7, 6), out.width = "60%", fig.align="center"}
+cont <- c('Germany','Kazakhstan','Finland', 'United States of America','Switzerland', 'Spain', 'Russian Federation')
+
+temp.dat <- NATMON_DS_18112022080205161 %>% filter(Country %in% cont) %>% 
+  filter(Time >= 2000) 
+
+ggplot() + 
+  geom_hline(yintercept = 50, color = "black", linetype="dashed", alpha = 0.8) +
+  geom_line(data = temp.dat, aes(Time, Value, color = LOCATION)) +
+    geom_point(data = temp.dat, aes(Time, Value, color = LOCATION)) +
+  geom_text(data = temp.dat %>% filter(Time == last(Time)), aes(label = LOCATION, 
+                                                           x = Time + 0.9, 
+                                                           y = Value, 
+                                                           color = LOCATION)) + 
+       guides(color = FALSE) +
+       scale_x_continuous(breaks = scales::pretty_breaks(10)) +
+    #theme_bw() +
+       theme_test() + 
+    theme(axis.text.x = element_text(size = 11)) +
+  theme(axis.text.y = element_text(size = 11)) +
+  theme(axis.title.x = element_blank(),
+        panel.grid.major.y = element_line(size=0.1, color = "grey70", linetype = "solid"),
+        panel.grid.minor.y  = element_line(size=0.1, color = "grey70", linetype = "solid"),
+        panel.grid.major.x = element_line(size=0.1, color = "grey70", linetype = "solid"),
+        #panel.grid.minor.x = element_line(size=0.1, color = "grey70", linetype = "solid"),
+        legend.position = "right",
+        legend.title = element_blank()) +
+  scale_color_brewer(palette = "Dark2", direction = -1) +
+  labs(x = "" , y = "Shara of women (%)", caption = "Based on UNESCO UIS data\nKAZ - Kazakhstan, RUS - Russia, FIN - Finland, USA - USA, ESP - Spain, DEU - Germany, CHE - Switzerland.") +  ylim(0, 100) +
+  theme(plot.caption=element_text(size=10, hjust=-0, face="italic", color="black"))
+
+```
+
+<br/>
+
+
+#### Table S1: Sample of gender assignment by gender-specific suffixes of patronymic
+
+```{r}
+
+book <- read_csv("book.csv")
+
+TableS2 <- read_delim("TableS2.csv", delim = ";", 
+    escape_double = FALSE, trim_ws = TRUE)
+```
+
+```{r}
+TableS2 %>% 
+kbl() %>%
+  #kbl(align = c("c")) %>%
+  kable_styling(full_width = F) #%>% 
+    # column_spec(4, color = "black",
+    #           background = factor(TableS2$Gender, 
+    #                               c('female', 'male', 'undefined'), 
+    #                               c("#ffe043","#91C45A", "#BBBBBB")))
+```
+
+<br/>
+
+#### Fig S2: Share of female authors (with confidence interval) {.tabset .tabset-fade .tabset-pills}
+
+##### DS
+
+```{r, fig.dim = c(8.8, 4.7)}
+# докторские
+
+m <- book %>% filter(type_diss == "PhD") %>% 
+  group_by(level_1_en, gender) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(ratio = 100 * female/tot) %>% arrange(desc(ratio)) %>% 
+  mutate(level_1_en = as.factor(level_1_en)) %>% pull(level_1_en)
+
+df1 <- book %>% 
+  filter(type_diss == "DS") %>% 
+  group_by(year_letopis, level_1_en, gender, level_less_agreg) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(#lb = 100 * binom.test(female, tot)$conf.int[[1]],
+          #hb = 100 * binom.test(female, tot)$conf.int[[2]],
+          ratio = 100 * female/tot) %>% 
+  filter(tot > 7)
+
+book %>% 
+  mutate(level_1_en = factor(level_1_en, levels = m)) %>% 
+  group_by(year_letopis, type_diss, level_1_en, gender) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(lb = 100 * binom.test(female, tot)$conf.int[[1]],
+         hb = 100 * binom.test(female, tot)$conf.int[[2]],
+         ratio = 100 * female/tot) %>% 
+  #filter(tot > 20) %>% 
+  filter(type_diss == "DS") %>% 
+  ggplot(aes(year_letopis, ratio)) +
+  geom_hline(yintercept = 50, color = "grey75", linetype = "dashed") +
+  geom_line() +
+  geom_point(color = "red", size = 1) +
+  geom_linerange(aes(ymin = lb, ymax = hb),color = "#0066ff", size = 0.2, alpha = 0.9) +
+  geom_text(aes(label = ifelse(year_letopis == "2005" | year_letopis =="2016", 
+                               paste0(round(ratio,  digits = 0), "%") ,'')),
+            size=2.2, vjust = -1.5, color = "black") +
+  geom_smooth(method = "lm", size = 0.5, alpha = 0.2) +
+  scale_y_continuous(limits = c(0, 110), breaks = c(0,50,100)) +
+  scale_x_continuous(limits = c(2004,2017)) +
+  scale_color_manual(values=c("#2171b5","#6baed6")) +
+  theme_bw()+ 
+  facet_wrap(~level_1_en, nrow = 3) +
+  labs(y = "Share of women (%)") +
+  theme(legend.position = "none",
+        legend.justification='left') + 
+  theme(axis.title.x = element_blank()) +
+  theme(panel.grid.minor = element_blank()) +
+  theme(strip.background =element_rect(fill=NA))+
+  theme(strip.text = element_text(colour = 'black')) +
+  theme(strip.text = element_text(size = 7)) +
+  theme(axis.text.x = element_text(size = 6)) +
+  theme(axis.text.y = element_text(size = 8)) +
+  theme(legend.title=element_blank()) 
+```
+
+
+<br/>
+
+
+##### PhD
+
+```{r, fig.dim = c(8.8, 4.7)}
+
+m <- book %>% filter(type_diss == "PhD") %>% 
+  group_by(level_1_en, gender) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(ratio = 100 * female/tot) %>% arrange(desc(ratio)) %>% 
+  mutate(level_1_en = as.factor(level_1_en)) %>% pull(level_1_en)
+  
+
+df1 <- book %>% 
+  filter(type_diss == "PhD") %>% 
+  group_by(year_letopis, level_1_en, gender, level_less_agreg) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(#lb = 100 * binom.test(female, tot)$conf.int[[1]],
+          #hb = 100 * binom.test(female, tot)$conf.int[[2]],
+          ratio = 100 * female/tot) %>% 
+  filter(tot > 10)
+
+
+book %>% mutate(level_1_en = factor(level_1_en, levels = m)) %>% 
+  group_by(year_letopis, type_diss, level_1_en, gender) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(lb = 100 * binom.test(female, tot)$conf.int[[1]],
+         hb = 100 * binom.test(female, tot)$conf.int[[2]],
+         ratio = 100 * female/tot) %>% 
+  #filter(tot > 20) %>% 
+  filter(type_diss == "PhD") %>% 
+  ggplot(aes(year_letopis, ratio)) +
+  geom_hline(yintercept = 50, color = "grey75", linetype = "dashed") +
+  geom_line() +
+  geom_point(color = "red", size = 1) +
+  geom_linerange(aes(ymin = lb, ymax = hb),color = "#0066ff", size = 0.2, alpha = 0.9) +
+  geom_text(aes(label = ifelse(year_letopis == "2005" | year_letopis =="2016", 
+                               paste0(round(ratio,  digits = 0), "%") ,'')),
+            size=2.2, vjust = -1.5, color = "black") +
+  geom_smooth(method = "lm", size = 0.5, alpha = 0.2) +
+  scale_y_continuous(limits = c(0, 110), breaks = c(0,50,100)) +
+  scale_x_continuous(limits = c(2004,2017)) +
+  scale_color_manual(values=c("#2171b5","#6baed6")) +
+  theme_bw()+ 
+  facet_wrap(~level_1_en, nrow = 3) +
+  labs(y = "Share of women (%)") +
+  theme(legend.position = "none",
+        legend.justification='left') + 
+  theme(axis.title.x = element_blank()) +
+  theme(panel.grid.minor = element_blank()) +
+  theme(strip.background =element_rect(fill=NA))+
+  theme(strip.text = element_text(colour = 'black')) +
+  theme(strip.text = element_text(size = 7)) +
+  theme(axis.text.x = element_text(size = 6)) +
+  theme(axis.text.y = element_text(size = 8)) +
+  theme(legend.title=element_blank()) 
+```
+
+<br/>
+
+
+
+#### Fig S3: Gap between the share of female authors in 2005/2006 and 2015/2016 
+
+```{r,fig.dim = c(8.2, 4), out.width = "85%", fig.align="center"}
+df <- book %>%
+  mutate(type_diss = factor(type_diss, levels = c("PhD", "DS"))) %>% 
+  mutate(year_letopis = case_when(year_letopis <= 2006 ~ "in_2005_2006",
+                                  year_letopis >= 2015 ~ "in_2015_2016",
+                                  TRUE ~ NA_character_)) %>% 
+  filter(!is.na(year_letopis)) %>% 
+  count(year_letopis,level_1_en, type_diss, gender) %>%
+  group_by(year_letopis,level_1_en,type_diss) %>%
+  mutate(prop = 100*prop.table(n))  %>% 
+  filter(gender == "female") 
+
+plot_order <- df %>% select(-gender,-n) %>% 
+  pivot_wider(names_from=year_letopis, values_from =prop) %>% 
+  mutate(gap = in_2015_2016 - in_2005_2006) %>% 
+  arrange(desc(gap)) 
+
+
+plot_order2 <- df %>% select(-gender,-n) %>% 
+  pivot_wider(names_from=year_letopis, values_from =prop) %>% 
+  mutate(gap = in_2015_2016 - in_2005_2006) %>% 
+  filter(type_diss == "PhD") %>%
+  arrange(gap)
+
+lvls <- as.character(plot_order2$level_1_en)
+
+plot_order <- plot_order %>% mutate(level_1_en = factor(level_1_en, levels = lvls)) 
+
+ggplot() +  
+  geom_vline(xintercept = 50, linetype = "dashed", alpha = 0.5, size = 0.4) +
+  geom_rect(data = plot_order, 
+            aes(xmin = 100, xmax = Inf, ymin = -Inf, ymax = Inf), fill = "grey90") +
+  geom_vline(xintercept = 100, size=0.2) +
+  geom_text(data=plot_order, 
+            aes(x = 105, y=level_1_en, label=round(gap, 1)), size=3.2) +
+  geom_dumbbell(data=plot_order, 
+                aes(x=in_2005_2006, xend=in_2015_2016, y=level_1_en, group=level_1_en),
+                color="grey80", size=1.8,
+                size_x=3.2, size_xend = 3.2,
+                colour_x= 'red', colour_xend = "#88c4ff") +
+  geom_text(data=plot_order, 
+            aes(x=in_2005_2006,  y=level_1_en,
+                label= ifelse(in_2005_2006>in_2015_2016,
+                              format(round(in_2005_2006, digits=0), nsmall = 0),'')),
+            color="black", hjust=-0.8, size=2.5) +
+  geom_text(data=plot_order, 
+            aes(x=in_2005_2006,  y=level_1_en,
+                label= ifelse(in_2005_2006<in_2015_2016,
+                              format(round(in_2005_2006, digits=0), nsmall = 0),'')),
+            color="black", hjust=1.8, size=2.5) +
+  geom_text(data=plot_order, 
+            aes(x=in_2015_2016,  y=level_1_en,
+                label= ifelse(in_2005_2006>in_2015_2016,
+                              format(round(in_2015_2016, digits=0), nsmall = 0),'')),
+            color="black", hjust=1.8, size=2.5) +
+  geom_text(data=plot_order, 
+            aes(x=in_2015_2016,  y=level_1_en,
+                label= ifelse(in_2005_2006<in_2015_2016,
+                              format(round(in_2015_2016, digits=0), nsmall = 0),'')),
+            color="black", hjust=-0.8, size=2.5) +
+
+  #geom_point(data = df, aes(prop, level_1_en), size = 4, color="black") +
+  geom_point(data = df, 
+             aes(prop, level_1_en, fill = as.character(year_letopis)), 
+             size = 4, colour="black", pch=21) +
+  scale_fill_manual(values=c("#D198C5FF","#E0C568FF"),
+                    labels = c("2005-2006", "2015-2016"))+
+  scale_x_continuous(limits= c(0,105), labels = function(x) paste0(x, "%")) +
+  facet_wrap(~type_diss) +
+  theme_bw()+ 
+  theme(panel.grid.major.y = element_line(size=0.1, color = "grey80", linetype = "solid"),
+        #panel.grid.minor = element_line(size=0.1, color = "grey80", linetype = "solid")
+         ) +
+  theme(legend.title=element_blank()) +
+  theme(    
+        axis.text.y.right = element_blank(),                 
+        #axis.ticks.y = element_blank(),                      
+        #axis.text.y = element_text(margin = margin(r = 0)),  
+        panel.spacing = unit(5, "mm"),                       
+        strip.background = element_blank()) +
+  theme(axis.title = element_blank()) +
+  theme(strip.text.y = element_text(angle = 0),
+        strip.text.x = element_text(size = 11)) +
+  labs(title = "Gap (pp)") + 
+  theme(plot.title = element_text(hjust = 1, size=10)) +
+  theme(axis.title = element_blank(),
+        panel.grid = element_blank()) +
+  theme(strip.background =element_rect(fill=NA))+
+  theme(strip.text = element_text(colour = 'black')) +
+  theme(strip.text = element_text(size = 10)) +
+  theme(axis.text.x = element_text(size = 9)) +
+  theme(axis.text.y = element_text(size = 9)) +
+  theme(#text = element_text(family="Times New Roman"),
+        legend.text = element_text(size = 9)) +
+  
+  ##легенду на строку с title
+  
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  theme(plot.margin=  unit(c(6.7,  5.5,  5.5, 5.5), "points"))+
+  theme(legend.position=c(0.13, 1.16)) 
+```
+
+<br/>
+
+
+#### Fig S4: Subfields: Dynamics of the share of female authors: 2005-2006 vs. 2015-2016  {.tabset .tabset-fade .tabset-pills}
+
+##### General Fields
+
+```{r, fig.dim = c(4.5, 4.5), out.width = "55%", fig.align="center"}
+book %>% filter(gender != "non_slavic") %>% 
+  mutate(year_letopis = case_when(year_letopis <= 2006 ~ 2005,
+                                  year_letopis >= 2015 ~ 2016,
+                                  TRUE ~ NA_real_)) %>% 
+  filter(!is.na(year_letopis)) %>% 
+  group_by(year_letopis, type_diss, level_1_en, gender) %>% count() %>% 
+  mutate(group = paste0(gender, "_", year_letopis)) %>% ungroup() %>% select(-year_letopis, -gender) %>% 
+  pivot_wider(names_from = group, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot_2005 = female_2005 + male_2005,
+         tot_2016 = female_2016 + male_2016) %>% 
+  rowwise() %>% 
+  mutate(ratio_2005 = 100 * female_2005/tot_2005,
+         ratio_2016 = 100 * female_2016/tot_2016) %>% 
+  #filter(tot_2005 > 20) %>%   filter(tot_2016 > 20) %>% 
+  #filter(type_diss == "PhD") %>% 
+  mutate(type_diss = factor(type_diss, levels = c("PhD", "DS"))) %>% 
+  ggplot(aes(ratio_2005, ratio_2016)) +
+  geom_abline(intercept = 0, linetype='dotted', col = 'black') +
+  geom_point(aes(fill = type_diss), alpha = 0.6, colour="black", pch=21, size=3) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_x_continuous(limits = c(0, 100)) +
+  #facet_wrap(~level_1_en, nrow = 3) +
+  scale_fill_manual(values=c("#F95700FF", "#00A4CCFF")) +
+  #geom_text_repel(aes(label= ifelse(ratio_2016-ratio_2005 > 10 | level_1_name == "Philology", as.character(level_1_name),'')),
+  geom_text_repel(aes(label= ifelse(ratio_2016-ratio_2005 > 12| ratio_2005 < 25, as.character(level_1_en),'')),
+                  size = 2.5,
+                  box.padding = unit(0.5, "lines"),
+                  point.padding = unit(0.1, "lines")) +
+  theme_bw() +
+  labs(x = "Share of women in 2005-2006 (%)", y = "Share of women in 2015-2016 (%)") +
+  theme(legend.position = "top",
+        legend.justification='left') + 
+  theme(panel.grid.minor = element_blank()) +
+  theme(strip.background =element_rect(fill=NA))+
+  theme(strip.text = element_text(colour = 'black')) +
+  theme(strip.text = element_text(size = 7)) +
+  #theme(axis.text.x = element_text(size = 6)) +
+  #theme(axis.text.y = element_text(size = 6)) +
+  theme(legend.title=element_blank()) +
+  
+  guides(fill=guide_legend(nrow=1,byrow=TRUE)) +
+  theme(plot.margin=  unit(c(6.9,  5.5,  5.5, 5.5), "points")) +
+  theme(legend.position=c(0.03, 0.93),
+        legend.background = element_rect(fill=NA)) 
+
+```
+
+##### PhD Subfields
+
+```{r, fig.dim = c(8.8, 5)}
+
+p <- book %>% filter(gender != "non_slavic") %>% 
+  filter(type_diss == "PhD") %>% 
+  mutate(year_letopis = case_when(year_letopis <= 2007 ~ 2005,
+                                  year_letopis >= 2014 ~ 2016,
+                                  TRUE ~ NA_real_)) %>% 
+  filter(!is.na(year_letopis)) %>% 
+  group_by(year_letopis, type_diss, level_1_en, gender, level_less_agreg) %>% count() %>% 
+  mutate(group = paste0(gender,"_",year_letopis)) %>% ungroup() %>% select(-year_letopis,-gender) %>% 
+  pivot_wider(names_from = group, values_from = n) %>% 
+  filter(!is.na(level_less_agreg)) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot_2005 = female_2005 + male_2005,
+         tot_2016 = female_2016 + male_2016) %>% 
+  rowwise() %>% 
+  mutate(ratio_2005 = 100 * female_2005/tot_2005,
+         ratio_2016 = 100 * female_2016/tot_2016) %>% 
+  filter(tot_2005 > 20) %>%   filter(tot_2016 > 20) %>% 
+  #filter(type_diss == "PhD") %>% 
+  mutate(type_diss = factor(type_diss, levels = c("PhD", "DS"))) %>% 
+  ggplot(aes(ratio_2005, ratio_2016)) +
+  geom_abline(intercept = 0, linetype='dotted', col = 'black') +
+  geom_point(aes(fill = type_diss), alpha = 0.6, colour="black",pch=21, size=1.3) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_x_continuous(limits = c(0, 100)) +
+  facet_wrap(~level_1_en, nrow = 3) +
+  scale_fill_manual(values=c("#F95700FF")) +
+
+  theme_bw() +
+  labs(x = "Share of female authors in 2005-2006 (%)", 
+       y = "Share of female authors in 2015-2016 (%)") +
+    # theme(legend.position="top",
+    #     legend.justification="left",
+    #     legend.margin=margin(0,0,0,0),
+    #     legend.box.margin=margin(-10,-10,-10,-10)) +
+    theme(legend.position="none") +
+  theme(panel.grid.minor = element_blank()) +
+  theme(strip.background =element_rect(fill=NA))+
+  theme(strip.text = element_text(colour = 'black')) +
+  theme(strip.text = element_text(size = 7)) +
+  theme(axis.text.x = element_text(size = 7)) +
+  theme(axis.text.y = element_text(size = 7)) +
+  theme(legend.title=element_blank()) 
+p +  guides(fill = guide_legend(override.aes = list(size = 2.6)))
+```
+
+##### DS Subfields
+
+```{r, fig.dim = c(8.8, 5)}
+
+p <- book %>% filter(gender != "non_slavic") %>% 
+  filter(type_diss == "DS") %>% 
+  mutate(year_letopis = case_when(year_letopis <= 2007 ~ 2005,
+                                  year_letopis >= 2014 ~ 2016,
+                                  TRUE ~ NA_real_)) %>% 
+  filter(!is.na(year_letopis)) %>% 
+  group_by(year_letopis, type_diss, level_1_en, gender, level_less_agreg) %>% count() %>% 
+  mutate(group = paste0(gender,"_",year_letopis)) %>% ungroup() %>% select(-year_letopis,-gender) %>% 
+  pivot_wider(names_from = group, values_from = n) %>% 
+  filter(!is.na(level_less_agreg)) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot_2005 = female_2005 + male_2005,
+         tot_2016 = female_2016 + male_2016) %>% 
+  rowwise() %>% 
+  mutate(ratio_2005 = 100 * female_2005/tot_2005,
+         ratio_2016 = 100 * female_2016/tot_2016) %>% 
+  filter(tot_2005 > 10) %>%   filter(tot_2016 > 10) %>% 
+  #filter(type_diss == "PhD") %>% 
+  mutate(type_diss = factor(type_diss, levels = c("PhD", "DS"))) %>% 
+  ggplot(aes(ratio_2005, ratio_2016)) +
+  geom_abline(intercept = 0, linetype='dotted', col = 'black') +
+  geom_point(aes(fill = type_diss), alpha = 0.6, colour="black",pch=21, size=1.3) +
+  scale_y_continuous(limits = c(0, 100)) +
+  scale_x_continuous(limits = c(0, 100)) +
+  facet_wrap(~level_1_en, nrow = 3) +
+  scale_fill_manual(values=c("#00A4CCFF")) +
+
+  theme_bw() +
+  labs(x = "Share of female authors (%) in 2005-2006", 
+       y = "Share of female authors (%) in 2015-2016") +
+    # theme(legend.position="top",
+    #     legend.justification="left",
+    #     legend.margin=margin(0,0,0,0),
+    #     legend.box.margin=margin(-10,-10,-10,-10)) +
+  theme(legend.position="none") +
+  theme(panel.grid.minor  = element_blank()) +
+  theme(strip.background =element_rect(fill=NA))+
+  theme(strip.text = element_text(colour = 'black')) +
+  theme(strip.text = element_text(size = 8)) +
+  theme(axis.text.x = element_text(size = 8)) +
+  theme(axis.text.y = element_text(size = 8)) +
+  theme(legend.title=element_blank()) 
+p +  guides(fill = guide_legend(override.aes = list(size = 2.6)))
+```
+
+<br/>
