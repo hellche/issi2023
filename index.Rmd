@@ -457,8 +457,7 @@ book %>%
 
 </div>
 
-<hr style="border:0.2px solid grey">
+------------------------------------------------------------------------
 
 [View the Project on GitHub](https://github.com/hellche/issi2023) 
 
-<br/>
