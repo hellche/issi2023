@@ -1,0 +1,255 @@
+---
+title: figures_and_tables_for_text
+output:
+  html_document:
+    df_print: paged
+    number_sections: no
+    self_contained: yes
+    smooth_scroll: no
+    toc: yes
+    toc_depth: 4
+    toc_float: no
+    toc_position: top
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,  warning = FALSE, message =  FALSE) 
+```
+
+```{r packeges}
+library(tidyverse)
+library(table1)
+library(haven)
+library(readxl)
+library(stringr)
+library(stringi)
+library(ggalt)
+library(ggrepel)
+library(colourpicker)
+```
+
+```{r functions}
+pvalue <- function(x, ...) {
+    # Construct vectors of data y, and groups (strata) g
+    y <- unlist(x)
+    g <- factor(rep(1:length(x), times=sapply(x, length)))
+    if (is.numeric(y)) {
+        # For numeric variables, perform a standard 2-sample t-test
+        p <- t.test(y ~ g)$p.value
+    } else {
+        # For categorical variables, perform a chi-squared test of independence
+        p <- chisq.test(table(y, g),correct = TRUE, simulate.p.value = TRUE, B = 10000)$p.value
+    }
+    # Format the p-value, using an HTML entity for the less-than sign.
+    # The initial empty string places the output on the line below the variable label.
+    c("", sub("<", "&lt;", format.pval(p, digits=3, eps=0.001)))
+}
+```
+
+```{r data}
+# Dissertations (Russian Book Chamber)
+book <- read_csv("data/book.csv")
+book <- book %>% mutate(type_diss = factor(type_diss, levels = c("PhD", "DS")))
+
+# Raw data (before gender assignment) for Table 1
+book_before_gender_assign <- read_csv("data/book_before_gender_assign.csv")
+```
+
+## Figures
+
+#### Figure. 1 Share of female and male authors in 18 research fields
+
+```{r, fig.align = "center", fig.dim = c(9, 4)}
+plot_order <- book %>%
+  count(level_1_en, gender) %>%
+  group_by(level_1_en) %>%
+  mutate(prop = prop.table(n)) %>%
+  filter(gender == "female") %>%
+  arrange(desc(prop))
+
+lvls <- as.character(plot_order$level_1_en)
+
+label_order <- book %>%
+  count(level_1_en, type_diss, gender) %>%
+  group_by(level_1_en,type_diss) %>%
+  mutate(prop = prop.table(n)) 
+
+book %>% 
+  mutate(level_1_en = factor(level_1_en, levels = lvls)) %>%
+  
+  ggplot(aes(level_1_en, fill = gender)) +
+  geom_bar(position = position_fill(reverse = TRUE), color = "white", alpha = 0.8) +
+  facet_grid(~type_diss) + 
+  geom_text(data = label_order, 
+            aes(label = 100 * round(prop,digits = 2), y = prop), 
+            position = position_stack(reverse = TRUE,vjust = 0.5),
+            size = 3, alpha = 0.8)+
+  scale_y_continuous(labels=scales::percent) +
+  coord_flip() + 
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  scale_fill_manual(values = c("#ffbe1a", "#b2b1b4")) +
+  labs(x = "", y = "Figure. 1 Share of female and male authors in 18 research fields") +
+  theme_bw() + 
+  theme(legend.position = "top",
+        legend.justification = 'left',
+        legend.title = element_blank(),
+        legend.text = element_text(size = 9),
+        panel.grid = element_blank(),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 10),
+        axis.text.x = element_text(size = 9),
+        axis.text.y = element_text(size = 9)) +
+  guides(fill=guide_legend(nrow = 1, byrow = TRUE)) +
+  theme(plot.margin = unit(c(1, 0.2, 0.2, 0.2), "cm"))+
+  theme(legend.position=c(0.001, 1.18))
+
+ggsave(filename = "pic/fig1.png",
+       units = "mm", dpi = 300,  width = 180,
+       height = 100)
+```
+
+<br/>
+
+#### Figure. 2 Gap between the share of female authors on PhD and DS levels
+
+```{r, fig.align = "center", fig.dim = c(8, 4.2)}
+
+df <- book %>%
+  count(level_1_en, type_diss, gender) %>%
+  group_by(level_1_en, type_diss) %>%
+  mutate(prop = 100 * prop.table(n))  %>% 
+  filter(gender == "female") 
+
+plot_order <- df %>% select(-gender, -n) %>% 
+  pivot_wider(names_from = type_diss, values_from = prop) %>% 
+  mutate(gap = PhD - DS) %>% 
+  arrange(desc(gap))
+
+lvls <- as.character(plot_order$level_1_en)
+
+ggplot() +  
+  geom_vline(xintercept = 50, linetype = "dashed", alpha = 0.5, size = 0.4) +
+  geom_rect(data = plot_order, 
+            aes(xmin = 100, xmax = Inf, ymin = -Inf, ymax = Inf), fill = "grey90") +
+  geom_vline(xintercept = 100, size = 0.2) +
+  geom_text(data = plot_order, 
+            aes(x = 105, y = reorder(level_1_en, gap), label = round(gap, 1)), size = 3.2) +
+  geom_dumbbell(data = plot_order, 
+                aes(x = PhD, xend = DS, y = level_1_en, group = level_1_en),
+                color = "grey80", size = 1.8,
+                size_x = 3.2, size_xend = 3.2) + 
+  geom_text(data = plot_order, 
+            aes(x = PhD, label = format(round(PhD, digits = 0), nsmall = 0), y = level_1_en),
+            color = "black", hjust = -0.8, size = 2.5) +
+  geom_text(data = plot_order, 
+            aes(x = DS, label = format(round(DS, digits = 0), nsmall = 0), y = level_1_en),
+            color = "black", hjust = 1.8, size = 2.5) +
+  geom_point(data = df, aes(prop, level_1_en, fill = type_diss), size = 4, colour = "black", pch = 21) +
+  scale_fill_manual(values = c("#F95700FF", "#00A4CCFF"))+
+  scale_x_continuous(limits = c(0, 105), labels = function(x) paste0(x, "%")) +
+  labs(title = "Gap (pp)", 
+       x = "Figure. 2 Gap between the share of female authors on PhD and DS levels") + 
+  theme_bw()+ 
+  theme(panel.grid.major = element_line(size=0.1, color = "grey80", linetype = "solid"),
+        panel.grid.minor = element_line(size = 0.1, color = "grey80", linetype = "solid"),
+        panel.spacing = unit(5, "mm"),
+        plot.title = element_text(hjust = 1, size = 10),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 9),
+        axis.text.y = element_text(size = 9),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 9)) +
+  guides(fill = guide_legend(nrow = 1,byrow = TRUE)) +
+  theme(plot.margin = unit(c(6.2, 5.5, 5.5, 5.5), "points")) +
+  theme(legend.position = c(0.1, 1.07))
+
+ggsave(filename = "pic/fig2.png",
+       units = "mm", dpi = 300,  width = 160,
+       height = 105)
+```
+
+<br/>
+
+#### Figure. 3 Share of female authors of PhDs and DSs in 2005-2016
+
+```{r, fig.align = "center", , fig.dim = c(9, 5)}
+lvls <- book %>% filter(type_diss == "PhD") %>% 
+  group_by(level_1_en, gender) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(ratio = 100 * female / tot) %>% arrange(desc(ratio)) %>% 
+  mutate(level_1_en = as.factor(level_1_en)) %>% pull(level_1_en)
+
+book %>%
+  mutate(level_1_en = factor(level_1_en, levels = lvls)) %>% 
+  group_by(year_letopis, type_diss, level_1_en, gender) %>% count() %>% 
+  pivot_wider(names_from = gender, values_from = n) %>% 
+  replace(is.na(.), 0) %>% 
+  mutate(tot = male + female) %>% 
+  rowwise() %>% 
+  mutate(ratio = 100 * female/tot) %>% 
+  
+  ggplot(aes(year_letopis, ratio, color = type_diss, group = type_diss)) +
+  geom_hline(yintercept = 50, color = "grey75", linetype = "dashed") +
+  geom_line(alpha = 0.6) +
+  geom_point(size = 0.8) +
+  geom_text(aes(label = ifelse(type_diss == "PhD" & (year_letopis == "2005" | year_letopis =="2016"), 
+                               paste0(round(ratio,  digits = 0), "%"), '')),
+            size = 2.2, vjust = -1.5, color = "black") +
+  scale_color_manual(values=c("#F95700FF", "#00A4CCFF")) +
+  scale_y_continuous(limits = c(0, 110), breaks = c(0, 50, 100)) +
+  scale_x_continuous(limits = c(2004, 2017)) +
+  facet_wrap( ~ level_1_en, nrow = 3) +
+  labs(y = "Share of women (%)", 
+       x = "Figure. 3 Share of female authors of PhDs and DSs in 2005-2016") +
+  theme_test()+
+  theme(panel.grid.major = element_line(size = 0.1, color = "grey80", linetype = "solid"),
+        panel.grid.minor = element_line(size = 0.1, color = "grey80", linetype = "solid"),
+        legend.position = "top",
+        legend.justification = 'left',
+        legend.title = element_blank(),
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = 'black', size = 8),
+        axis.text.x = element_text(size = 6),
+        axis.text.y = element_text(size = 8)) 
+
+ggsave(filename = "pic/fig3.png",
+       units = "mm", dpi = 300,  width = 200,
+       height = 110)
+```
+
+<br/>
+
+## Tables
+
+#### Table 1. Research fields with counts of dissertations in 2005-2016. 
+
+```{r}
+tab_1 <- table1( ~ level_1_en,
+        data = book_before_gender_assign)
+
+write.table(tab_1, "tables/tab_1.csv", col.names = TRUE, row.names = FALSE, append = TRUE, sep = ',')
+tab_1
+```
+
+<br/>
+
+#### Table 2. Share of female and male authors of PhDs and DSs.
+
+In the text for ISSI 2023 in Table 2 we have 227730 PhDs, here less by 5. It is because the `book` data here with the dropped observations with unknown organizations.
+
+```{r}
+tab_2 <- table1( ~ gender | type_diss,
+        overall = FALSE,
+        #extra.col = list(`P-value` = pvalue),
+        data = book)
+
+write.table(tab_2, "tables/tab_2.csv", col.names = TRUE, row.names = FALSE, append = TRUE, sep = ',')
+tab_2
+```
+
+<br/>
+
