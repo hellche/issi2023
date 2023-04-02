@@ -2,9 +2,9 @@
 
 Online Supplementary Materials: https://hellche.github.io/issi2023/
 
-[Working parer](/texts/ISSI2023_Chechik_v2.pdf)
+[Working parer](https://hellche.github.io/files/ISSI2023_wp_Chechik.pdf)
 
-[ISSI Poster](/texts/ISSI2023_posters_Chechik.pdf)
+[ISSI Poster](https://hellche.github.io/files/ISSI2023_poster_Chechik.pdf)
 
 `index.rmd` – code for Online Supplementary Materials page renderer. 
 
