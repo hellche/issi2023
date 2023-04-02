@@ -2,7 +2,7 @@
 
 Online Supplementary Materials: https://hellche.github.io/issi2023/
 
-[a link](https://github.com/hellche/issi2023/files/ISSI2023_posters_Chechik.pdf)
+[a link](files/CV.pdf)
 
 
 
