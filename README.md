@@ -6,7 +6,7 @@ Online Supplementary Materials: https://hellche.github.io/issi2023/
 <a href="files/ISSI2023_Chechik_v2.pdf" target="_blank">PDF.</a>
 
 
- <embed src="files/ISSI2023_Chechik_v2.pdf" width="100%" height="850px"/>
+<a href="files/ISSI2023_Chechik_v2.pdf">mypdf</a>
 
 
 `index.rmd` – code for Online Supplementary Materials page renderer. 
