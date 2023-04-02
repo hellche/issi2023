@@ -2,6 +2,10 @@
 
 Online Supplementary Materials: https://hellche.github.io/issi2023/
 
+[a link](https://github.com/hellche/issi2023/raw/main/files/ISSI2023_posters_Chechik.pdf)
+
+
+
 `index.rmd` – code for Online Supplementary Materials page renderer. 
 
 Folder `figures_and_tables_for_text` contains figures and tables for the ISSI2023 rip paper *Gender Disparities in Academic Disciplines: An Attempt to Fill in the Blind Spots of Bibliometrics* and the code to generate them.
