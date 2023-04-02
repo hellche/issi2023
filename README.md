@@ -3,7 +3,7 @@
 Online Supplementary Materials: https://hellche.github.io/issi2023/
 
 
-<a href="hellche.github.io/issi2023/files/ISSI2023_Chechik_v2.pdf" target="_blank">PDF.</a>
+<a href="files/ISSI2023_Chechik_v2.pdf" target="_blank">PDF.</a>
 
 `index.rmd` – code for Online Supplementary Materials page renderer. 
 
